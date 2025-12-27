@@ -40,6 +40,8 @@ func CreateTable(ctx context.Context, s *state, input *dynamodb.CreateTableInput
 		return nil, err
 	}
 
+	s.keySchema.Store(*input.TableName, schemaKeyNames(input.KeySchema))
+
 	return &dynamodb.CreateTableOutput{
 		TableDescription: td,
 	}, nil

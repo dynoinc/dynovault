@@ -174,7 +174,7 @@ func unmarshalAttributeValue(dec *jsontext.Decoder, av *types.AttributeValue) er
 type state struct {
 	kv KVStore
 
-	partitionKey sync.Map
+	keySchema sync.Map
 }
 
 type ddbHandler struct {

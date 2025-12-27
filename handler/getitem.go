@@ -2,7 +2,7 @@ package handler
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -10,15 +10,16 @@ import (
 )
 
 func GetItem(ctx context.Context, s *state, input *dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error) {
-	key := *input.TableName
-	for k, v := range input.Key {
-		if sv, ok := v.(*types.AttributeValueMemberS); ok {
-			key = fmt.Sprintf("%s:%s-%s", key, k, sv.Value)
-		}
+	key, err := s.itemKey(ctx, *input.TableName, input.Key)
+	if err != nil {
+		return nil, err
 	}
 	jsonValue, err := s.kv.Get(ctx, []byte(key))
 	if err != nil {
-		return &dynamodb.GetItemOutput{}, nil
+		if errors.Is(err, ErrNotFound) {
+			return &dynamodb.GetItemOutput{}, nil
+		}
+		return nil, err
 	}
 	var value map[string]types.AttributeValue
 	if err := json.Unmarshal(jsonValue, &value, jsonOpts()); err != nil {

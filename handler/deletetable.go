@@ -25,6 +25,8 @@ func DeleteTable(ctx context.Context, s *state, input *dynamodb.DeleteTableInput
 		return nil, err
 	}
 
+	s.keySchema.Delete(*input.TableName)
+
 	return &dynamodb.DeleteTableOutput{
 		TableDescription: &td,
 	}, nil
