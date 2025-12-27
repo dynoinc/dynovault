@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rajatgoel/dynovault/feastle"
+	"github.com/dynoinc/dynovault/feastle"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"

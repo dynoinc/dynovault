@@ -4,10 +4,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/rajatgoel/dynovault/inmemory"
+	"github.com/dynoinc/dynovault/inmemory"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/rajatgoel/dynovault/handler"
+	"github.com/dynoinc/dynovault/handler"
 )
 
 func TestInMemory(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/rajatgoel/dynovault/handler"
+	"github.com/dynoinc/dynovault/handler"
 )
 
 type InMemory struct {

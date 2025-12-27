@@ -1,4 +1,4 @@
-module github.com/rajatgoel/dynovault
+module github.com/dynoinc/dynovault
 
 go 1.24.1
 

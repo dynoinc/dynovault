@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,12 @@ import (
 
 	"github.com/gorilla/handlers"
 )
+
+// DynamoDB error response format
+type ddbError struct {
+	Type    string `json:"__type"`
+	Message string `json:"message"`
+}
 
 type state struct {
 	kv KVStore
@@ -95,7 +102,11 @@ func handle[I validatable, O any](
 
 	resp, err := fn(request.Context(), s, i)
 	if err != nil {
-		sendResponse(writer, 500, err.Error())
+		if errors.Is(err, ErrNotFound) {
+			sendDDBError(writer, 400, "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException", "Requested resource not found")
+		} else {
+			sendDDBError(writer, 500, "com.amazonaws.dynamodb.v20120810#InternalServerError", err.Error())
+		}
 		return
 	}
 
@@ -109,7 +120,17 @@ func handle[I validatable, O any](
 }
 
 func sendResponse(writer http.ResponseWriter, statusCode int, message string) {
-	writer.WriteHeader(statusCode)
 	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(statusCode)
 	_, _ = writer.Write([]byte(message))
+}
+
+func sendDDBError(writer http.ResponseWriter, statusCode int, errType, message string) {
+	resp, _ := json.Marshal(ddbError{
+		Type:    errType,
+		Message: message,
+	})
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(statusCode)
+	_, _ = writer.Write(resp)
 }

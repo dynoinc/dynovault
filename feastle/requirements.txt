@@ -1,3 +1,0 @@
-pandas~=1.5.3
-feast~=0.47.0
-feast[aws]~=0.47.0

@@ -1,10 +1,10 @@
-project: feastle
+project: feature_repo
 registry: data/registry.db
 provider: aws
 offline_store:
   type: file
 online_store:
-    type: dynamodb
-    region: us-west-2
-    endpoint_url: http://localhost:8779
-entity_key_serialization_version: 2
+  type: dynamodb
+  region: us-west-2
+  endpoint_url: http://localhost:8779
+entity_key_serialization_version: 3

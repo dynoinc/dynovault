@@ -4,8 +4,8 @@ import (
 	"flag"
 	"net/http"
 
-	"github.com/rajatgoel/dynovault/handler"
-	"github.com/rajatgoel/dynovault/inmemory"
+	"github.com/dynoinc/dynovault/handler"
+	"github.com/dynoinc/dynovault/inmemory"
 )
 
 func main() {
