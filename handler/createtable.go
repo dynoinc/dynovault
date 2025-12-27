@@ -2,12 +2,13 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/go-json-experiment/json"
 	"github.com/lithammer/shortuuid/v4"
 )
 
@@ -16,20 +17,21 @@ func CreateTable(ctx context.Context, s *state, input *dynamodb.CreateTableInput
 
 	now := time.Now()
 	key := fmt.Sprintf("$table:%s", *input.TableName)
-	value := &dynamodb.TableDescription{
+
+	td := &types.TableDescription{
 		TableId:              aws.String(shortuuid.New()),
 		TableName:            input.TableName,
-		TableStatus:          aws.String("ACTIVE"),
-		CreationDateTime:     aws.Time(now),
+		TableStatus:          types.TableStatusActive,
+		CreationDateTime:     &now,
 		AttributeDefinitions: input.AttributeDefinitions,
 		KeySchema:            input.KeySchema,
-		TableClassSummary: &dynamodb.TableClassSummary{
-			LastUpdateDateTime: aws.Time(now),
-			TableClass:         aws.String("STANDARD"),
+		TableClassSummary: &types.TableClassSummary{
+			LastUpdateDateTime: &now,
+			TableClass:         types.TableClassStandard,
 		},
 	}
 
-	jsonValue, err := json.Marshal(value)
+	jsonValue, err := json.Marshal(td, jsonOpts())
 	if err != nil {
 		return nil, err
 	}
@@ -39,6 +41,6 @@ func CreateTable(ctx context.Context, s *state, input *dynamodb.CreateTableInput
 	}
 
 	return &dynamodb.CreateTableOutput{
-		TableDescription: value,
+		TableDescription: td,
 	}, nil
 }

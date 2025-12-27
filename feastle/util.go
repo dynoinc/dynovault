@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 type FeastFeature struct {
@@ -35,24 +35,24 @@ func GenerateRandomFeature(featureNames []string) *FeastFeature {
 	}
 }
 
-func (f *FeastFeature) ddbItem() map[string]*dynamodb.AttributeValue {
-	values := map[string]*dynamodb.AttributeValue{}
+func (f *FeastFeature) ddbItem() map[string]types.AttributeValue {
+	values := map[string]types.AttributeValue{}
 	for k, v := range f.Values {
-		values[k] = &dynamodb.AttributeValue{B: v}
+		values[k] = &types.AttributeValueMemberB{Value: v}
 	}
-	item := map[string]*dynamodb.AttributeValue{
-		"entity_id": {S: aws.String(f.EntityId)},
-		"event_ts":  {S: aws.String(f.EventTimestamp)},
-		"values":    {M: values},
+	item := map[string]types.AttributeValue{
+		"entity_id": &types.AttributeValueMemberS{Value: f.EntityId},
+		"event_ts":  &types.AttributeValueMemberS{Value: f.EventTimestamp},
+		"values":    &types.AttributeValueMemberM{Value: values},
 	}
 	return item
 }
 
 func NewBatchWriteItemInput(features []*FeastFeature) *dynamodb.BatchWriteItemInput {
-	requestItems := map[string][]*dynamodb.WriteRequest{}
+	requestItems := map[string][]types.WriteRequest{}
 	for _, f := range features {
-		requestItems[f.FeatureName] = append(requestItems[f.FeatureName], &dynamodb.WriteRequest{
-			PutRequest: &dynamodb.PutRequest{
+		requestItems[f.FeatureName] = append(requestItems[f.FeatureName], types.WriteRequest{
+			PutRequest: &types.PutRequest{
 				Item: f.ddbItem(),
 			},
 		})
@@ -63,12 +63,12 @@ func NewBatchWriteItemInput(features []*FeastFeature) *dynamodb.BatchWriteItemIn
 }
 
 func NewBatchWriteItemInputDelete(features []*FeastFeature) *dynamodb.BatchWriteItemInput {
-	requestItems := map[string][]*dynamodb.WriteRequest{}
+	requestItems := map[string][]types.WriteRequest{}
 	for _, f := range features {
-		requestItems[f.FeatureName] = append(requestItems[f.FeatureName], &dynamodb.WriteRequest{
-			DeleteRequest: &dynamodb.DeleteRequest{
-				Key: map[string]*dynamodb.AttributeValue{
-					"entity_id": {S: aws.String(f.EntityId)},
+		requestItems[f.FeatureName] = append(requestItems[f.FeatureName], types.WriteRequest{
+			DeleteRequest: &types.DeleteRequest{
+				Key: map[string]types.AttributeValue{
+					"entity_id": &types.AttributeValueMemberS{Value: f.EntityId},
 				},
 			},
 		})
@@ -79,12 +79,12 @@ func NewBatchWriteItemInputDelete(features []*FeastFeature) *dynamodb.BatchWrite
 }
 
 func NewBatchGetItemInput(features []*FeastFeature) *dynamodb.BatchGetItemInput {
-	requestItems := map[string]*dynamodb.KeysAndAttributes{}
+	requestItems := map[string]types.KeysAndAttributes{}
 	for _, f := range features {
-		requestItems[f.FeatureName] = &dynamodb.KeysAndAttributes{
-			Keys: []map[string]*dynamodb.AttributeValue{
+		requestItems[f.FeatureName] = types.KeysAndAttributes{
+			Keys: []map[string]types.AttributeValue{
 				{
-					"entity_id": &dynamodb.AttributeValue{S: aws.String(f.EntityId)},
+					"entity_id": &types.AttributeValueMemberS{Value: f.EntityId},
 				},
 			},
 		}

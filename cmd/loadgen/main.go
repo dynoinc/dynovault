@@ -13,10 +13,11 @@ import (
 
 	"github.com/dynoinc/dynovault/feastle"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
 	"github.com/valyala/histogram"
 )
@@ -39,18 +40,19 @@ func main() {
 	flag.IntVar(&numParallelWriter, "num_parallel_writer", 10, "Number of parallel writers")
 	flag.Parse()
 
-	cfg := &aws.Config{
-		Region:      aws.String("us-east-1"),
-		Endpoint:    aws.String(endpointURL),
-		MaxRetries:  aws.Int(0),
-		Credentials: credentials.NewStaticCredentials("ID", "SECRET_KEY", "TOKEN"),
+	cfg, err := config.LoadDefaultConfig(context.Background(),
+		config.WithRegion("us-east-1"),
+		config.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider("ID", "SECRET_KEY", "TOKEN"),
+		),
+	)
+	if err != nil {
+		panic(fmt.Errorf("failed to load config: %s", err))
 	}
 
-	sess, err := session.NewSession(cfg)
-	if err != nil {
-		panic(fmt.Errorf("failed to create new session: %s", err))
-	}
-	db := dynamodb.New(sess, cfg)
+	db := dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
+		o.BaseEndpoint = aws.String(endpointURL)
+	})
 
 	lg := newLoadgen(
 		loadgenParams{
@@ -85,11 +87,11 @@ type loadgenParams struct {
 
 type loadgen struct {
 	param  loadgenParams
-	db     *dynamodb.DynamoDB
+	db     *dynamodb.Client
 	tables []string
 }
 
-func newLoadgen(param loadgenParams, db *dynamodb.DynamoDB) *loadgen {
+func newLoadgen(param loadgenParams, db *dynamodb.Client) *loadgen {
 	return &loadgen{
 		param: param,
 		db:    db,
@@ -100,18 +102,18 @@ func (l *loadgen) createTables(ctx context.Context, tables []string) error {
 	beginTime := time.Now()
 	log.Println("Creating tables.... len(tables):", len(tables))
 	for _, tableName := range tables {
-		_, err := l.db.CreateTableWithContext(ctx, &dynamodb.CreateTableInput{
+		_, err := l.db.CreateTable(ctx, &dynamodb.CreateTableInput{
 			TableName: aws.String(tableName),
-			AttributeDefinitions: []*dynamodb.AttributeDefinition{
+			AttributeDefinitions: []types.AttributeDefinition{
 				{
 					AttributeName: aws.String("entity_id"),
-					AttributeType: aws.String("S"),
+					AttributeType: types.ScalarAttributeTypeS,
 				},
 			},
-			KeySchema: []*dynamodb.KeySchemaElement{
+			KeySchema: []types.KeySchemaElement{
 				{
 					AttributeName: aws.String("entity_id"),
-					KeyType:       aws.String("HASH"),
+					KeyType:       types.KeyTypeHash,
 				},
 			},
 		})
@@ -122,7 +124,7 @@ func (l *loadgen) createTables(ctx context.Context, tables []string) error {
 	}
 
 	for _, tableName := range tables {
-		table, err := l.db.DescribeTable(&dynamodb.DescribeTableInput{
+		table, err := l.db.DescribeTable(ctx, &dynamodb.DescribeTableInput{
 			TableName: aws.String(tableName),
 		})
 		if err != nil {
@@ -245,7 +247,7 @@ func (l *loadgen) doBatchGetItem(ctx context.Context) error {
 		features[i] = feastle.GenerateRandomFeature(l.tables)
 	}
 	batchGetItemInput := feastle.NewBatchGetItemInput(features)
-	_, err := l.db.BatchGetItemWithContext(ctx, batchGetItemInput)
+	_, err := l.db.BatchGetItem(ctx, batchGetItemInput)
 	if err != nil {
 		return err
 	}
@@ -259,7 +261,7 @@ func (l *loadgen) doBatchWriteItem(ctx context.Context) error {
 		features[i] = feastle.GenerateRandomFeature(l.tables)
 	}
 	batchWriteItemInput := feastle.NewBatchWriteItemInput(features)
-	_, err := l.db.BatchWriteItemWithContext(ctx, batchWriteItemInput)
+	_, err := l.db.BatchWriteItem(ctx, batchWriteItemInput)
 	if err != nil {
 		return err
 	}

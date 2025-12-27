@@ -2,10 +2,11 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/go-json-experiment/json"
 )
 
 func PutItem(ctx context.Context, s *state, input *dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error) {
@@ -20,13 +21,15 @@ func PutItem(ctx context.Context, s *state, input *dynamodb.PutItemInput) (*dyna
 	for keyName, keyValue := range input.Item {
 		for _, keySchemaElement := range describeTableOutput.Table.KeySchema {
 			if keyName == *keySchemaElement.AttributeName {
-				key = fmt.Sprintf("%s:%s-%s", key, keyName, *keyValue.S)
+				if sv, ok := keyValue.(*types.AttributeValueMemberS); ok {
+					key = fmt.Sprintf("%s:%s-%s", key, keyName, sv.Value)
+				}
 			}
 		}
 	}
 	// Process the put
-	// PutRequest.Item is map[string]*dynamodb.AttributeValue
-	jsonValue, err := json.Marshal(input.Item)
+	// PutRequest.Item is map[string]types.AttributeValue
+	jsonValue, err := json.Marshal(input.Item, jsonOpts())
 	if err != nil {
 		return nil, err
 	}

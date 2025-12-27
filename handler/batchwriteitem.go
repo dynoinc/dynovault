@@ -2,11 +2,12 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/go-json-experiment/json"
 )
 
 func getPartitionKey(ctx context.Context, s *state, tableName string) (string, error) {
@@ -25,7 +26,7 @@ func getPartitionKey(ctx context.Context, s *state, tableName string) (string, e
 
 	hashKey := ""
 	for _, keySchemaElement := range describeTableOutput.Table.KeySchema {
-		if *keySchemaElement.KeyType == "HASH" {
+		if keySchemaElement.KeyType == types.KeyTypeHash {
 			hashKey = *keySchemaElement.AttributeName
 			break
 		}
@@ -51,16 +52,20 @@ func BatchWriteItem(
 			// the AWS SDK should validate that for us
 			if writeRequest.DeleteRequest != nil {
 				for keyName, keyValue := range writeRequest.DeleteRequest.Key {
-					key = fmt.Sprintf("%s:%s-%s", key, keyName, *keyValue.S)
+					if sv, ok := keyValue.(*types.AttributeValueMemberS); ok {
+						key = fmt.Sprintf("%s:%s-%s", key, keyName, sv.Value)
+					}
 				}
 				if err := s.kv.Delete(ctx, []byte(key)); err != nil {
 					return nil, err
 				}
 			} else {
-				key = fmt.Sprintf("%s:%s-%s", key, partitionKey, *writeRequest.PutRequest.Item[partitionKey].S)
+				if sv, ok := writeRequest.PutRequest.Item[partitionKey].(*types.AttributeValueMemberS); ok {
+					key = fmt.Sprintf("%s:%s-%s", key, partitionKey, sv.Value)
+				}
 				// Process the put
-				// PutRequest.Item is map[string]*dynamodb.AttributeValue
-				jsonValue, err := json.Marshal(writeRequest.PutRequest.Item)
+				// PutRequest.Item is map[string]types.AttributeValue
+				jsonValue, err := json.Marshal(writeRequest.PutRequest.Item, jsonOpts())
 				if err != nil {
 					return nil, err
 				}
@@ -72,6 +77,6 @@ func BatchWriteItem(
 		}
 	}
 	return &dynamodb.BatchWriteItemOutput{
-		UnprocessedItems: map[string][]*dynamodb.WriteRequest{},
+		UnprocessedItems: map[string][]types.WriteRequest{},
 	}, nil
 }

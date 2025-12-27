@@ -1,12 +1,14 @@
 package itest
 
 import (
+	"context"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -14,54 +16,55 @@ import (
 type Suite struct {
 	suite.Suite
 
-	db *dynamodb.DynamoDB
+	db *dynamodb.Client
 }
 
 func New(t *testing.T, url string) *Suite {
-	cfg := &aws.Config{
-		Region:      aws.String("us-east-1"),
-		Endpoint:    aws.String(url),
-		MaxRetries:  aws.Int(0),
-		Credentials: credentials.NewStaticCredentials("ID", "SECRET_KEY", "TOKEN"),
-	}
-
-	sess, err := session.NewSession(cfg)
+	cfg, err := config.LoadDefaultConfig(context.Background(),
+		config.WithRegion("us-east-1"),
+		config.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider("ID", "SECRET_KEY", "TOKEN"),
+		),
+	)
 	require.NoError(t, err)
-	db := dynamodb.New(sess, cfg)
+
+	db := dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
+		o.BaseEndpoint = aws.String(url)
+	})
 	return &Suite{db: db}
 }
 
 func (s *Suite) TestCreateTable() {
 	testTableName := "TestTable"
-	_, err := s.db.CreateTable(&dynamodb.CreateTableInput{
+	_, err := s.db.CreateTable(context.Background(), &dynamodb.CreateTableInput{
 		TableName: aws.String(testTableName),
-		AttributeDefinitions: []*dynamodb.AttributeDefinition{
+		AttributeDefinitions: []types.AttributeDefinition{
 			{
 				AttributeName: aws.String("id"),
-				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+				AttributeType: types.ScalarAttributeTypeS,
 			},
 			{
 				AttributeName: aws.String("value"),
-				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+				AttributeType: types.ScalarAttributeTypeS,
 			},
 		},
-		KeySchema: []*dynamodb.KeySchemaElement{
+		KeySchema: []types.KeySchemaElement{
 			{
 				AttributeName: aws.String("id"),
-				KeyType:       aws.String(dynamodb.KeyTypeHash),
+				KeyType:       types.KeyTypeHash,
 			},
 		},
 	})
 	require.NoError(s.T(), err)
 
-	_, err = s.db.DescribeTable(&dynamodb.DescribeTableInput{
+	_, err = s.db.DescribeTable(context.Background(), &dynamodb.DescribeTableInput{
 		TableName: aws.String(testTableName),
 	})
 	require.NoError(s.T(), err)
 }
 
 func (s *Suite) TestInvalidCreateTable() {
-	_, err := s.db.CreateTable(&dynamodb.CreateTableInput{
+	_, err := s.db.CreateTable(context.Background(), &dynamodb.CreateTableInput{
 		TableName: aws.String(""),
 	})
 	require.Error(s.T(), err)
@@ -69,35 +72,35 @@ func (s *Suite) TestInvalidCreateTable() {
 
 func (s *Suite) TestDeleteTable() {
 	testTableName := "TestTable"
-	_, err := s.db.CreateTable(&dynamodb.CreateTableInput{
+	_, err := s.db.CreateTable(context.Background(), &dynamodb.CreateTableInput{
 		TableName: aws.String(testTableName),
-		AttributeDefinitions: []*dynamodb.AttributeDefinition{
+		AttributeDefinitions: []types.AttributeDefinition{
 			{
 				AttributeName: aws.String("id"),
-				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+				AttributeType: types.ScalarAttributeTypeS,
 			},
 			{
 				AttributeName: aws.String("value"),
-				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+				AttributeType: types.ScalarAttributeTypeS,
 			},
 		},
-		KeySchema: []*dynamodb.KeySchemaElement{
+		KeySchema: []types.KeySchemaElement{
 			{
 				AttributeName: aws.String("id"),
-				KeyType:       aws.String(dynamodb.KeyTypeHash),
+				KeyType:       types.KeyTypeHash,
 			},
 		},
 	})
 	require.NoError(s.T(), err)
 
-	response, err := s.db.DeleteTable(&dynamodb.DeleteTableInput{
+	response, err := s.db.DeleteTable(context.Background(), &dynamodb.DeleteTableInput{
 		TableName: aws.String(testTableName),
 	})
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response.TableDescription)
 	require.Equal(s.T(), *response.TableDescription.TableName, testTableName)
 
-	_, err = s.db.DescribeTable(&dynamodb.DescribeTableInput{
+	_, err = s.db.DescribeTable(context.Background(), &dynamodb.DescribeTableInput{
 		TableName: aws.String(testTableName),
 	})
 	require.Error(s.T(), err)
@@ -105,36 +108,32 @@ func (s *Suite) TestDeleteTable() {
 
 func (s *Suite) TestPutItem() {
 	testTableName := "TestTable"
-	_, err := s.db.CreateTable(&dynamodb.CreateTableInput{
+	_, err := s.db.CreateTable(context.Background(), &dynamodb.CreateTableInput{
 		TableName: aws.String(testTableName),
-		AttributeDefinitions: []*dynamodb.AttributeDefinition{
+		AttributeDefinitions: []types.AttributeDefinition{
 			{
 				AttributeName: aws.String("id"),
-				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+				AttributeType: types.ScalarAttributeTypeS,
 			},
 			{
 				AttributeName: aws.String("value"),
-				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+				AttributeType: types.ScalarAttributeTypeS,
 			},
 		},
-		KeySchema: []*dynamodb.KeySchemaElement{
+		KeySchema: []types.KeySchemaElement{
 			{
 				AttributeName: aws.String("id"),
-				KeyType:       aws.String(dynamodb.KeyTypeHash),
+				KeyType:       types.KeyTypeHash,
 			},
 		},
 	})
 	require.NoError(s.T(), err)
 
-	_, err = s.db.PutItem(&dynamodb.PutItemInput{
+	_, err = s.db.PutItem(context.Background(), &dynamodb.PutItemInput{
 		TableName: aws.String(testTableName),
-		Item: map[string]*dynamodb.AttributeValue{
-			"id": {
-				S: aws.String("1"),
-			},
-			"value": {
-				S: aws.String("Test Value"),
-			},
+		Item: map[string]types.AttributeValue{
+			"id":    &types.AttributeValueMemberS{Value: "1"},
+			"value": &types.AttributeValueMemberS{Value: "Test Value"},
 		},
 	})
 	require.NoError(s.T(), err)
@@ -142,119 +141,103 @@ func (s *Suite) TestPutItem() {
 
 func (s *Suite) TestGetItem() {
 	testTableName := "TestTable"
-	_, err := s.db.CreateTable(&dynamodb.CreateTableInput{
+	_, err := s.db.CreateTable(context.Background(), &dynamodb.CreateTableInput{
 		TableName: aws.String(testTableName),
-		AttributeDefinitions: []*dynamodb.AttributeDefinition{
+		AttributeDefinitions: []types.AttributeDefinition{
 			{
 				AttributeName: aws.String("id"),
-				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+				AttributeType: types.ScalarAttributeTypeS,
 			},
 			{
 				AttributeName: aws.String("value"),
-				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+				AttributeType: types.ScalarAttributeTypeS,
 			},
 		},
-		KeySchema: []*dynamodb.KeySchemaElement{
+		KeySchema: []types.KeySchemaElement{
 			{
 				AttributeName: aws.String("id"),
-				KeyType:       aws.String(dynamodb.KeyTypeHash),
+				KeyType:       types.KeyTypeHash,
 			},
 		},
 	})
 	require.NoError(s.T(), err)
 
-	_, err = s.db.PutItem(&dynamodb.PutItemInput{
+	_, err = s.db.PutItem(context.Background(), &dynamodb.PutItemInput{
 		TableName: aws.String(testTableName),
-		Item: map[string]*dynamodb.AttributeValue{
-			"id": {
-				S: aws.String("1"),
-			},
-			"value": {
-				S: aws.String("Test Value"),
-			},
+		Item: map[string]types.AttributeValue{
+			"id":    &types.AttributeValueMemberS{Value: "1"},
+			"value": &types.AttributeValueMemberS{Value: "Test Value"},
 		},
 	})
 
 	require.NoError(s.T(), err)
-	response, err := s.db.GetItem(&dynamodb.GetItemInput{
+	response, err := s.db.GetItem(context.Background(), &dynamodb.GetItemInput{
 		TableName: aws.String(testTableName),
-		Key: map[string]*dynamodb.AttributeValue{
-			"id": {
-				S: aws.String("1"),
-			},
+		Key: map[string]types.AttributeValue{
+			"id": &types.AttributeValueMemberS{Value: "1"},
 		},
 	})
 	require.NotEmpty(s.T(), response.Item)
-	require.EqualValues(s.T(), *response.Item["id"].S, "1")
-	require.EqualValues(s.T(), *response.Item["value"].S, "Test Value")
+	require.EqualValues(s.T(), response.Item["id"].(*types.AttributeValueMemberS).Value, "1")
+	require.EqualValues(s.T(), response.Item["value"].(*types.AttributeValueMemberS).Value, "Test Value")
 	require.NoError(s.T(), err)
 }
 
 func (s *Suite) TestDeleteItem() {
 	testTableName := "TestTable"
-	_, err := s.db.CreateTable(&dynamodb.CreateTableInput{
+	_, err := s.db.CreateTable(context.Background(), &dynamodb.CreateTableInput{
 		TableName: aws.String(testTableName),
-		AttributeDefinitions: []*dynamodb.AttributeDefinition{
+		AttributeDefinitions: []types.AttributeDefinition{
 			{
 				AttributeName: aws.String("id"),
-				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+				AttributeType: types.ScalarAttributeTypeS,
 			},
 			{
 				AttributeName: aws.String("value"),
-				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+				AttributeType: types.ScalarAttributeTypeS,
 			},
 		},
-		KeySchema: []*dynamodb.KeySchemaElement{
+		KeySchema: []types.KeySchemaElement{
 			{
 				AttributeName: aws.String("id"),
-				KeyType:       aws.String(dynamodb.KeyTypeHash),
+				KeyType:       types.KeyTypeHash,
 			},
 		},
 	})
 	require.NoError(s.T(), err)
 
-	_, err = s.db.PutItem(&dynamodb.PutItemInput{
+	_, err = s.db.PutItem(context.Background(), &dynamodb.PutItemInput{
 		TableName: aws.String(testTableName),
-		Item: map[string]*dynamodb.AttributeValue{
-			"id": {
-				S: aws.String("1"),
-			},
-			"value": {
-				S: aws.String("Test Value"),
-			},
+		Item: map[string]types.AttributeValue{
+			"id":    &types.AttributeValueMemberS{Value: "1"},
+			"value": &types.AttributeValueMemberS{Value: "Test Value"},
 		},
 	})
 	require.NoError(s.T(), err)
 
-	response, err := s.db.GetItem(&dynamodb.GetItemInput{
+	response, err := s.db.GetItem(context.Background(), &dynamodb.GetItemInput{
 		TableName: aws.String(testTableName),
-		Key: map[string]*dynamodb.AttributeValue{
-			"id": {
-				S: aws.String("1"),
-			},
+		Key: map[string]types.AttributeValue{
+			"id": &types.AttributeValueMemberS{Value: "1"},
 		},
 	})
 	require.NotEmpty(s.T(), response.Item)
-	require.EqualValues(s.T(), *response.Item["id"].S, "1")
-	require.EqualValues(s.T(), *response.Item["value"].S, "Test Value")
+	require.EqualValues(s.T(), response.Item["id"].(*types.AttributeValueMemberS).Value, "1")
+	require.EqualValues(s.T(), response.Item["value"].(*types.AttributeValueMemberS).Value, "Test Value")
 	require.NoError(s.T(), err)
 
-	_, err = s.db.DeleteItem(&dynamodb.DeleteItemInput{
+	_, err = s.db.DeleteItem(context.Background(), &dynamodb.DeleteItemInput{
 		TableName: aws.String("TestTable"),
-		Key: map[string]*dynamodb.AttributeValue{
-			"id": {
-				S: aws.String("1"),
-			},
+		Key: map[string]types.AttributeValue{
+			"id": &types.AttributeValueMemberS{Value: "1"},
 		},
 	})
 	require.NoError(s.T(), err)
 
-	response, err = s.db.GetItem(&dynamodb.GetItemInput{
+	response, err = s.db.GetItem(context.Background(), &dynamodb.GetItemInput{
 		TableName: aws.String(testTableName),
-		Key: map[string]*dynamodb.AttributeValue{
-			"id": {
-				S: aws.String("1"),
-			},
+		Key: map[string]types.AttributeValue{
+			"id": &types.AttributeValueMemberS{Value: "1"},
 		},
 	})
 	require.Empty(s.T(), response.Item)
@@ -263,35 +246,35 @@ func (s *Suite) TestDeleteItem() {
 
 func (s *Suite) TestBatchWrite() {
 	testTableName := "TestTable"
-	_, err := s.db.CreateTable(&dynamodb.CreateTableInput{
+	_, err := s.db.CreateTable(context.Background(), &dynamodb.CreateTableInput{
 		TableName: aws.String(testTableName),
-		AttributeDefinitions: []*dynamodb.AttributeDefinition{
+		AttributeDefinitions: []types.AttributeDefinition{
 			{
 				AttributeName: aws.String("id"),
-				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+				AttributeType: types.ScalarAttributeTypeS,
 			},
 			{
 				AttributeName: aws.String("value"),
-				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+				AttributeType: types.ScalarAttributeTypeS,
 			},
 		},
-		KeySchema: []*dynamodb.KeySchemaElement{
+		KeySchema: []types.KeySchemaElement{
 			{
 				AttributeName: aws.String("id"),
-				KeyType:       aws.String(dynamodb.KeyTypeHash),
+				KeyType:       types.KeyTypeHash,
 			},
 		},
 	})
 
 	require.NoError(s.T(), err)
-	_, err = s.db.BatchWriteItem(&dynamodb.BatchWriteItemInput{
-		RequestItems: map[string][]*dynamodb.WriteRequest{
+	_, err = s.db.BatchWriteItem(context.Background(), &dynamodb.BatchWriteItemInput{
+		RequestItems: map[string][]types.WriteRequest{
 			testTableName: {
 				{
-					PutRequest: &dynamodb.PutRequest{
-						Item: map[string]*dynamodb.AttributeValue{
-							"id":    {S: aws.String("1")},
-							"value": {S: aws.String("test value")},
+					PutRequest: &types.PutRequest{
+						Item: map[string]types.AttributeValue{
+							"id":    &types.AttributeValueMemberS{Value: "1"},
+							"value": &types.AttributeValueMemberS{Value: "test value"},
 						},
 					},
 				},
@@ -303,36 +286,36 @@ func (s *Suite) TestBatchWrite() {
 
 func (s *Suite) TestBatchGet() {
 	testTableName := "TestTable"
-	_, err := s.db.CreateTable(&dynamodb.CreateTableInput{
+	_, err := s.db.CreateTable(context.Background(), &dynamodb.CreateTableInput{
 		TableName: aws.String(testTableName),
-		AttributeDefinitions: []*dynamodb.AttributeDefinition{
+		AttributeDefinitions: []types.AttributeDefinition{
 			{
 				AttributeName: aws.String("id"),
-				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+				AttributeType: types.ScalarAttributeTypeS,
 			},
 			{
 				AttributeName: aws.String("value"),
-				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+				AttributeType: types.ScalarAttributeTypeS,
 			},
 		},
-		KeySchema: []*dynamodb.KeySchemaElement{
+		KeySchema: []types.KeySchemaElement{
 			{
 				AttributeName: aws.String("id"),
-				KeyType:       aws.String(dynamodb.KeyTypeHash),
+				KeyType:       types.KeyTypeHash,
 			},
 		},
 	})
 	require.NoError(s.T(), err)
 
 	testValue := "Test Value"
-	_, err = s.db.BatchWriteItem(&dynamodb.BatchWriteItemInput{
-		RequestItems: map[string][]*dynamodb.WriteRequest{
+	_, err = s.db.BatchWriteItem(context.Background(), &dynamodb.BatchWriteItemInput{
+		RequestItems: map[string][]types.WriteRequest{
 			testTableName: {
 				{
-					PutRequest: &dynamodb.PutRequest{
-						Item: map[string]*dynamodb.AttributeValue{
-							"id":    {S: aws.String("1")},
-							"value": {S: aws.String(testValue)},
+					PutRequest: &types.PutRequest{
+						Item: map[string]types.AttributeValue{
+							"id":    &types.AttributeValueMemberS{Value: "1"},
+							"value": &types.AttributeValueMemberS{Value: testValue},
 						},
 					},
 				},
@@ -341,13 +324,13 @@ func (s *Suite) TestBatchGet() {
 	})
 	require.NoError(s.T(), err)
 
-	response, err := s.db.BatchGetItem(&dynamodb.BatchGetItemInput{
-		RequestItems: map[string]*dynamodb.KeysAndAttributes{
+	response, err := s.db.BatchGetItem(context.Background(), &dynamodb.BatchGetItemInput{
+		RequestItems: map[string]types.KeysAndAttributes{
 			testTableName: {
 				ProjectionExpression: aws.String("id"),
-				Keys: []map[string]*dynamodb.AttributeValue{
+				Keys: []map[string]types.AttributeValue{
 					{
-						"id": {S: aws.String("1")},
+						"id": &types.AttributeValueMemberS{Value: "1"},
 					},
 				},
 			},
@@ -358,46 +341,46 @@ func (s *Suite) TestBatchGet() {
 
 	responseItems := response.Responses[testTableName]
 	require.NotEmpty(s.T(), responseItems)
-	testItem := map[string]*dynamodb.AttributeValue{}
+	var testItem map[string]types.AttributeValue
 	for _, item := range responseItems {
-		if *item["id"].S == "1" {
+		if item["id"].(*types.AttributeValueMemberS).Value == "1" {
 			testItem = item
 		}
 	}
 	require.NotNil(s.T(), testItem)
-	require.EqualValues(s.T(), *testItem["value"].S, testValue)
+	require.EqualValues(s.T(), testItem["value"].(*types.AttributeValueMemberS).Value, testValue)
 }
 
 func (s *Suite) TestBatchDelete() {
 	testTableName := "TestTable"
-	_, err := s.db.CreateTable(&dynamodb.CreateTableInput{
+	_, err := s.db.CreateTable(context.Background(), &dynamodb.CreateTableInput{
 		TableName: aws.String(testTableName),
-		AttributeDefinitions: []*dynamodb.AttributeDefinition{
+		AttributeDefinitions: []types.AttributeDefinition{
 			{
 				AttributeName: aws.String("id"),
-				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+				AttributeType: types.ScalarAttributeTypeS,
 			},
 			{
 				AttributeName: aws.String("value"),
-				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+				AttributeType: types.ScalarAttributeTypeS,
 			},
 		},
-		KeySchema: []*dynamodb.KeySchemaElement{
+		KeySchema: []types.KeySchemaElement{
 			{
 				AttributeName: aws.String("id"),
-				KeyType:       aws.String(dynamodb.KeyTypeHash),
+				KeyType:       types.KeyTypeHash,
 			},
 		},
 	})
 	require.NoError(s.T(), err)
 
-	_, err = s.db.BatchWriteItem(&dynamodb.BatchWriteItemInput{
-		RequestItems: map[string][]*dynamodb.WriteRequest{
+	_, err = s.db.BatchWriteItem(context.Background(), &dynamodb.BatchWriteItemInput{
+		RequestItems: map[string][]types.WriteRequest{
 			testTableName: {
 				{
-					PutRequest: &dynamodb.PutRequest{
-						Item: map[string]*dynamodb.AttributeValue{
-							"id": {S: aws.String("1")},
+					PutRequest: &types.PutRequest{
+						Item: map[string]types.AttributeValue{
+							"id": &types.AttributeValueMemberS{Value: "1"},
 						},
 					},
 				},
@@ -406,13 +389,13 @@ func (s *Suite) TestBatchDelete() {
 	})
 	require.NoError(s.T(), err)
 
-	_, err = s.db.BatchWriteItem(&dynamodb.BatchWriteItemInput{
-		RequestItems: map[string][]*dynamodb.WriteRequest{
+	_, err = s.db.BatchWriteItem(context.Background(), &dynamodb.BatchWriteItemInput{
+		RequestItems: map[string][]types.WriteRequest{
 			testTableName: {
 				{
-					DeleteRequest: &dynamodb.DeleteRequest{
-						Key: map[string]*dynamodb.AttributeValue{
-							"id": {S: aws.String("1")},
+					DeleteRequest: &types.DeleteRequest{
+						Key: map[string]types.AttributeValue{
+							"id": &types.AttributeValueMemberS{Value: "1"},
 						},
 					},
 				},
@@ -421,13 +404,13 @@ func (s *Suite) TestBatchDelete() {
 	})
 	require.NoError(s.T(), err)
 
-	response, err := s.db.BatchGetItem(&dynamodb.BatchGetItemInput{
-		RequestItems: map[string]*dynamodb.KeysAndAttributes{
+	response, err := s.db.BatchGetItem(context.Background(), &dynamodb.BatchGetItemInput{
+		RequestItems: map[string]types.KeysAndAttributes{
 			testTableName: {
 				ProjectionExpression: aws.String("id"),
-				Keys: []map[string]*dynamodb.AttributeValue{
+				Keys: []map[string]types.AttributeValue{
 					{
-						"id": {S: aws.String("1")},
+						"id": &types.AttributeValueMemberS{Value: "1"},
 					},
 				},
 			},

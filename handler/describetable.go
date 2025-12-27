@@ -2,10 +2,11 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/go-json-experiment/json"
 )
 
 func DescribeTable(ctx context.Context, s *state, input *dynamodb.DescribeTableInput) (*dynamodb.DescribeTableOutput, error) {
@@ -15,8 +16,8 @@ func DescribeTable(ctx context.Context, s *state, input *dynamodb.DescribeTableI
 		return nil, err
 	}
 
-	var td dynamodb.TableDescription
-	if err := json.Unmarshal(jsonValue, &td); err != nil {
+	var td types.TableDescription
+	if err := json.Unmarshal(jsonValue, &td, jsonOpts()); err != nil {
 		return nil, err
 	}
 
