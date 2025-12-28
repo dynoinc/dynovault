@@ -6,7 +6,8 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("not found")
+	ErrNotFound      = errors.New("not found")
+	ErrResourceInUse = errors.New("resource in use")
 )
 
 type KVStore interface {

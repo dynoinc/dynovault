@@ -245,9 +245,12 @@ func handle[I any, O any](
 
 	resp, err := fn(request.Context(), s, i)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
+		switch {
+		case errors.Is(err, ErrResourceInUse):
+			sendDDBError(writer, 400, "com.amazonaws.dynamodb.v20120810#ResourceInUseException", err.Error())
+		case errors.Is(err, ErrNotFound):
 			sendDDBError(writer, 400, "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException", "Requested resource not found")
-		} else {
+		default:
 			sendDDBError(writer, 500, "com.amazonaws.dynamodb.v20120810#InternalServerError", err.Error())
 		}
 		return

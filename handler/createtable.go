@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -13,10 +14,15 @@ import (
 )
 
 func CreateTable(ctx context.Context, s *state, input *dynamodb.CreateTableInput) (*dynamodb.CreateTableOutput, error) {
-	// TODO: Check if table already exists
+	key := fmt.Sprintf("$table:%s", *input.TableName)
+
+	if _, err := s.kv.Get(ctx, []byte(key)); err == nil {
+		return nil, ErrResourceInUse
+	} else if !errors.Is(err, ErrNotFound) {
+		return nil, err
+	}
 
 	now := time.Now()
-	key := fmt.Sprintf("$table:%s", *input.TableName)
 
 	td := &types.TableDescription{
 		TableId:              aws.String(shortuuid.New()),
