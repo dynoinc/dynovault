@@ -247,6 +247,8 @@ func handle[I any, O any](
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			sendDDBError(writer, 400, "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException", "Requested resource not found")
+		} else if errors.Is(err, ErrAlreadyExists) {
+			sendDDBError(writer, 400, "com.amazonaws.dynamodb.v20120810#ResourceInUseException", "Table already exists")
 		} else {
 			sendDDBError(writer, 500, "com.amazonaws.dynamodb.v20120810#InternalServerError", err.Error())
 		}

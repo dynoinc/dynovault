@@ -34,6 +34,13 @@ func New(t *testing.T, url string) *Suite {
 	return &Suite{db: db}
 }
 
+func (s *Suite) SetupTest() {
+	testTableName := "TestTable"
+	_, _ = s.db.DeleteTable(context.Background(), &dynamodb.DeleteTableInput{
+		TableName: aws.String(testTableName),
+	})
+}
+
 func (s *Suite) TestCreateTable() {
 	testTableName := "TestTable"
 	_, err := s.db.CreateTable(context.Background(), &dynamodb.CreateTableInput{
