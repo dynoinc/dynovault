@@ -17,6 +17,9 @@ import (
 	"github.com/gorilla/handlers"
 )
 
+// ErrAlreadyExists is returned when attempting to create a resource that already exists.
+var ErrAlreadyExists = errors.New("already exists")
+
 // DynamoDB error response format
 type ddbError struct {
 	Type    string `json:"__type"`

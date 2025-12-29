@@ -14,7 +14,7 @@ func GetItem(ctx context.Context, s *state, input *dynamodb.GetItemInput) (*dyna
 	if err != nil {
 		return nil, err
 	}
-	jsonValue, err := s.kv.Get(ctx, []byte(key))
+	result, err := s.kv.Get(ctx, []byte(key))
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return &dynamodb.GetItemOutput{}, nil
@@ -22,7 +22,7 @@ func GetItem(ctx context.Context, s *state, input *dynamodb.GetItemInput) (*dyna
 		return nil, err
 	}
 	var value map[string]types.AttributeValue
-	if err := json.Unmarshal(jsonValue, &value, jsonOpts()); err != nil {
+	if err := json.Unmarshal(result.Value, &value, jsonOpts()); err != nil {
 		return nil, err
 	}
 	return &dynamodb.GetItemOutput{

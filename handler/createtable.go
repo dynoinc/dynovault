@@ -17,12 +17,6 @@ func CreateTable(ctx context.Context, s *state, input *dynamodb.CreateTableInput
 	now := time.Now()
 	key := fmt.Sprintf("$table:%s", *input.TableName)
 
-	if _, err := s.kv.Get(ctx, []byte(key)); err == nil {
-		return nil, ErrAlreadyExists
-	} else if !errors.Is(err, ErrNotFound) {
-		return nil, err
-	}
-
 	td := &types.TableDescription{
 		TableId:              aws.String(shortuuid.New()),
 		TableName:            input.TableName,
@@ -41,7 +35,10 @@ func CreateTable(ctx context.Context, s *state, input *dynamodb.CreateTableInput
 		return nil, err
 	}
 
-	if err := s.kv.Put(ctx, []byte(key), jsonValue); err != nil {
+	if err := s.kv.Put(ctx, []byte(key), jsonValue, IfNotExists()); err != nil {
+		if errors.Is(err, ErrConditionFailed) {
+			return nil, ErrAlreadyExists
+		}
 		return nil, err
 	}
 

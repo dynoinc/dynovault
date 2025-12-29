@@ -11,13 +11,13 @@ import (
 
 func DeleteTable(ctx context.Context, s *state, input *dynamodb.DeleteTableInput) (*dynamodb.DeleteTableOutput, error) {
 	key := fmt.Sprintf("$table:%s", *input.TableName)
-	jsonValue, err := s.kv.Get(ctx, []byte(key))
+	result, err := s.kv.Get(ctx, []byte(key))
 	if err != nil {
 		return nil, err
 	}
 
 	var td types.TableDescription
-	if err = json.Unmarshal(jsonValue, &td, jsonOpts()); err != nil {
+	if err = json.Unmarshal(result.Value, &td, jsonOpts()); err != nil {
 		return nil, err
 	}
 

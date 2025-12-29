@@ -22,7 +22,7 @@ func BatchGetItem(
 			if err != nil {
 				return nil, err
 			}
-			jsonValue, err := s.kv.Get(ctx, []byte(key))
+			result, err := s.kv.Get(ctx, []byte(key))
 			if err != nil {
 				if errors.Is(err, ErrNotFound) {
 					continue
@@ -30,7 +30,7 @@ func BatchGetItem(
 				return nil, err
 			}
 			var value map[string]types.AttributeValue
-			if err := json.Unmarshal(jsonValue, &value, jsonOpts()); err != nil {
+			if err := json.Unmarshal(result.Value, &value, jsonOpts()); err != nil {
 				return nil, err
 			}
 			responses[tableName] = append(responses[tableName], value)
